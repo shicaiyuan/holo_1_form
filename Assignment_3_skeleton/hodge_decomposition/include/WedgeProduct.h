@@ -136,7 +136,7 @@ double CWedgeOperator<M>::wedge_product()
         }
 
         //insert your code here to compute p from du0[3], du1[3];
-
+		p += (du0[0] * du1[1] + du0[1] * du1[2] + du0[2] * du1[0] - du0[0] * du1[2] - du0[1] * du1[0] - du0[2] * du1[1]) / 6;
     }
     return p;
 };
@@ -200,7 +200,9 @@ double CWedgeOperator<M>::wedge_star_product()
         }
 
         //insert your code here to compute p from du0[3], du1[3];
-
+		p += (cos(theta[0])/sin(theta[0]) * du0[0] * du1[0] 
+			+ cos(theta[1])/sin(theta[1]) * du0[1] * du1[1]
+			+ cos(theta[2])/sin(theta[2]) * du0[2] * du1[2])/2;
     }
     return p;
 };
