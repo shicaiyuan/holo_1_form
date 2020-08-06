@@ -60,6 +60,8 @@ class CHodgeDecomposition
     /*! compute the harmonic form */
     void _normalize();
 
+	void _normalizeDuv(CHodgeDecompositionMesh* pDomain);
+
     /*! random 1-form */
     void _random_form();
 

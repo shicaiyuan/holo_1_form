@@ -45,6 +45,7 @@ namespace MeshLib{
 	/*! The texutre coordinates of the vertex
 	*/
 	CPoint2 & uv()       { return m_uv; };
+	CPoint2 & draw_uv() { return m_draw_uv; };
 
 	/*! The most counter clockwise outgoing halfedge of the vertex .
 	*/
@@ -95,6 +96,9 @@ namespace MeshLib{
 	/*! Texture coordinates of the vertex. 
 	*/
 	CPoint2 m_uv;
+	/*! Texture coordinates of the vertex.
+	*/
+	CPoint2 m_draw_uv;
 	/*! The most CCW incoming halfedge of the vertex.
 	*/
     CHalfEdge *     m_halfedge;

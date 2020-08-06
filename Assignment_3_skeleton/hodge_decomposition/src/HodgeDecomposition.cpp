@@ -2,6 +2,7 @@
 #include <float.h>
 #include <math.h>
 #include <time.h>
+#include <unordered_map>
 
 #include "HodgeDecomposition.h"
 #include "WedgeProduct.h"
@@ -251,6 +252,39 @@ void MeshLib::CHodgeDecomposition::_normalize()
 	}
 
 	for (M::MeshFaceIterator fiter(m_pMesh); !fiter.end(); fiter++)
+	{
+		M::CFace* pf = *fiter;
+		double w = 0;
+		for (M::FaceHalfedgeIterator fhiter(pf); !fhiter.end(); fhiter++)
+		{
+			M::CHalfEdge* ph = *fhiter;
+			ph->form() /= p;
+		}
+	}
+}
+
+void MeshLib::CHodgeDecomposition::_normalizeDuv(CHodgeDecompositionMesh* pDomain)
+{
+	using M = CHodgeDecompositionMesh;
+
+	for (M::MeshEdgeIterator eiter(pDomain); !eiter.end(); eiter++)
+	{
+		M::CEdge* pe = *eiter;
+		M::CHalfEdge* ph = pDomain->edgeHalfedge(pe, 0);
+		pe->du() = ph->form();
+	}
+	CWedgeOperator<M> W(pDomain, pDomain);
+	double p = W.wedge_star_product();
+	p = sqrt(p);
+
+	for (M::MeshEdgeIterator eiter(pDomain); !eiter.end(); eiter++)
+	{
+		M::CEdge* pe = *eiter;
+		M::CHalfEdge* ph = pDomain->edgeHalfedge(pe, 0);
+		pe->du() /= p;
+	}
+
+	for (M::MeshFaceIterator fiter(pDomain); !fiter.end(); fiter++)
 	{
 		M::CFace* pf = *fiter;
 		double w = 0;
@@ -686,6 +720,53 @@ void MeshLib::CHodgeDecomposition::integration(
 
 	M::CVertex* head = NULL;
 
+	// 归一化使用的uv
+	// holo-1-form虚部沿着外边界积分， 归一化到2* Pi
+	M::CBoundary bnd(pForm);
+	if (bnd.loops().size() > 0) {
+		M::CLoop* pL = bnd.loops()[0];
+		std::list<M::CHalfEdge*>& hs = pL->halfedges();
+
+		double s = 0;
+		for (std::list<M::CHalfEdge*>::iterator hiter = hs.begin(); hiter != hs.end(); hiter++)
+		{
+			M::CHalfEdge* ph = *hiter;
+			M::CEdge* pe = pForm->halfedgeEdge(ph);
+			s += pe->duv()[1];
+		}
+		std::cout << "integration along the boundary is " << abs(s) << std::endl;
+		double scale = abs(s) / (2 * M_PI);
+		std::cout << "scale is " << scale << std::endl;
+
+		for (M::MeshEdgeIterator eiter(pForm); !eiter.end(); eiter++)
+		{
+			M::CEdge* pe = *eiter;
+			pe->duv() /= scale;
+		}
+
+		s = 0.0;
+		for (std::list<M::CHalfEdge*>::iterator hiter = hs.begin(); hiter != hs.end(); hiter++)
+		{
+			M::CHalfEdge* ph = *hiter;
+			M::CEdge* pe = pForm->halfedgeEdge(ph);
+			s += pe->duv()[1];
+		}
+		std::cout << "after 2 pi , integration along the boundary is " << s << std::endl;
+	}
+
+	/*M::CLoop* pL2 = bnd.loops()[1];
+	std::list<M::CHalfEdge*>& hs2 = pL2->halfedges();
+	s = 0.0;
+	for (std::list<M::CHalfEdge*>::iterator hiter = hs2.begin(); hiter != hs2.end(); hiter++)
+	{
+		M::CHalfEdge* ph = *hiter;
+		M::CEdge* pe = pForm->halfedgeEdge(ph);
+		s += pe->duv()[1];
+	}
+	std::cout << "after 2 pi ,another bound, integration along the boundary is " << s << std::endl;*/
+
+	//_normalize();
+	///////////////////////////////
 	for (M::MeshVertexIterator viter(pDomain); !viter.end(); viter++)
 	{
 		M::CVertex* v = *viter;
@@ -750,5 +831,26 @@ void MeshLib::CHodgeDecomposition::integration(
 				tail->uv() = head->uv() - e->duv();
 			}
 		}
+	}
+
+	std::unordered_map<int, CVertex*> vertexmap;
+	for (M::MeshVertexIterator viter(pDomain); !viter.end(); viter++)
+	{
+		M::CVertex* v = *viter;
+		if (vertexmap.count(v->father())) {
+			std::cout << "v-father:" << v->father() << " : delta v= " << (v->uv()[1] - vertexmap[v->father()]->uv()[1]) << std::endl;
+		}
+		else {
+			vertexmap.emplace(v->father(), v);
+		}
+	}
+
+	for (M::MeshVertexIterator viter(pDomain); !viter.end(); viter++)
+	{
+		M::CVertex* v = *viter;
+		double r = exp(v->uv()[0]);
+		double theta = v->uv()[1];
+		v->uv()[0] = r * std::cos(theta);
+		v->uv()[1] = r * std::sin(theta);
 	}
 }
